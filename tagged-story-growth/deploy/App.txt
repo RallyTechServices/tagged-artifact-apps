@@ -3,11 +3,11 @@
 <head>
     <title>Tagged Story Growth</title>
     <!--  (c) 2015 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Mon Aug 10 2015 07:06:00 GMT-0600 (MDT) -->
+    <!--  Build Date: Tue Aug 18 2015 14:26:42 GMT-0600 (MDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Mon Aug 10 2015 07:06:00 GMT-0600 (MDT)";
-        var CHECKSUM = 8544430096;
+        var APP_BUILD_DATE = "Tue Aug 18 2015 14:26:42 GMT-0600 (MDT)";
+        var CHECKSUM = 9881096907;
     </script>
     
     <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
@@ -456,13 +456,20 @@ Ext.define('Rally.technicalservices.chart.CumulativeGrowth',{
     initComponent: function() {
         this.callParent(arguments);
     },
-    _getChartData: function(records, dateFieldMapping){
+    _getChartData: function(records, taggedRecords, dateFieldMapping){
         var category_date_format = 'Y-m-d',
             categories = Rally.technicalservices.Toolbox.getTimeCategories(this.startDate, this.endDate, 'day',category_date_format),
             series = [];
 
+        var all_hash = Rally.technicalservices.Toolbox.populateTimeHash(this.startDate, this.endDate, 'day', category_date_format, records, 'CreationDate');
+        series.push({
+            name: 'Created (All)',
+            data: Rally.technicalservices.Toolbox.getCumulativeSumFromTimeHash(all_hash, categories)
+        });
+
+        //Now do tagged stories
         _.each(dateFieldMapping, function(field, name){
-            var hash = Rally.technicalservices.Toolbox.populateTimeHash(this.startDate, this.endDate, 'day', category_date_format, records, field);
+            var hash = Rally.technicalservices.Toolbox.populateTimeHash(this.startDate, this.endDate, 'day', category_date_format, taggedRecords, field);
             series.push({
                 name: name,
                 data: Rally.technicalservices.Toolbox.getCumulativeSumFromTimeHash(hash, categories)
@@ -539,45 +546,69 @@ Ext.define("tagged-story-growth", {
     _fetchStories: function(tags){
         var me = this,
             start_date = this.getContext().getTimeboxScope().getRecord().get('ReleaseStartDate'),
-            tag_filters = [];
+            release_name = this.getContext().getTimeboxScope().getRecord().get('Name'),
+            tag_filter_objs = [];
 
         _.each(tags, function(tag){
-            tag_filters.push({
+            tag_filter_objs.push({
                 property: 'Tags',
                 operator: '=',
                 value: tag
             });
         });
-        var filters = Rally.data.wsapi.Filter.or(tag_filters);
-        filters = filters.and({
-            property: 'CreationDate',
-            operator: '>=',
-            value: start_date
-        });
 
-        this.logger.log('_fetchStories > filters', filters.toString(), '> start_date', start_date);
+        var filter_obj = {
+            property: 'Release.Name',
+            operator: '=',
+            value: release_name
+        };
+
+        var filters = Rally.data.wsapi.Filter.or(tag_filter_objs);
+        filters = filters.and(filter_obj);
+
+        this.logger.log('_fetchStories > filters', filters.toString());
+        var fetch = ['FormattedID','ObjectID','Project','CreationDate','AcceptedDate','Name'],
+            model = 'HierarchicalRequirement',
+            promises = [
+                Rally.technicalservices.WsapiToolbox.fetchWsapiRecords({model: model, fetch: fetch, filters: [filter_obj]}),
+                Rally.technicalservices.WsapiToolbox.fetchWsapiRecords({model: model, fetch: fetch, filters: filters})
+            ];
+
+        this.logger.log('here');
         this.setLoading('Loading tagged stories...');
-        Rally.technicalservices.WsapiToolbox.fetchWsapiRecords({
-            model: 'HierarchicalRequirement',
-            fetch: ['FormattedID','ObjectID','Project','CreationDate','AcceptedDate','Name'],
-            filters: filters
-        }).then({
+        Deft.Promise.all(promises).then({
             scope: this,
-            success: function(records){
-                this.logger.log('_fetchStories > records loaded', records.length);
-                this._buildChart(records);
+            success: function(results){
+                this.logger.log('_fetchStories > records loaded', results.length);
+                this._buildChart(results[0], results[1]);
             },
             failure: function(msg){
                 Rally.ui.notify.Notifier.showError({message: msg});
             }
         }).always(function(){ me.setLoading(false);});
+
+        //Rally.technicalservices.WsapiToolbox.fetchWsapiRecords({
+        //    model: model,
+        //    fetch: fetch,
+        //    filters: filters
+        //}).then({
+        //    scope: this,
+        //    success: function(records){
+        //        this.logger.log('_fetchStories > records loaded', records.length);
+        //        this._buildChart(records);
+        //    },
+        //    failure: function(msg){
+        //        Rally.ui.notify.Notifier.showError({message: msg});
+        //    }
+        //}).always(function(){ me.setLoading(false);});
     },
 
-    _buildChart: function(records){
+    _buildChart: function(all_stories, tagged_stories){
         this.add({
             xtype: 'tscumulativegrowth',
             itemId: 'display_box',
-            records: records,
+            records: all_stories,
+            taggedRecords: tagged_stories,
             dateFieldMapping: {
                 Created: 'CreationDate',
                 Accepted: 'AcceptedDate'

@@ -14,9 +14,8 @@ Ext.define('mockStory',{
     fields: [
         {name:'ObjectID', type: 'int'},
         {name:'Name',type:'string'},
-        {name:'PlanEstimate',type:'int'},
         {name:'id',type:'int',convert:useObjectID},
-        {name:'ScheduleState',type:'string',defaultValue:'Defined'}
+        {name:'CreationDate',type:'auto'}
     ]
 });
 
