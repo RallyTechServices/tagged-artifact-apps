@@ -3,11 +3,11 @@
 <head>
     <title>Tagged Story Growth</title>
     <!--  (c) 2015 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Tue Aug 18 2015 14:26:42 GMT-0600 (MDT) -->
+    <!--  Build Date: Tue Aug 18 2015 14:48:44 GMT-0600 (MDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Tue Aug 18 2015 14:26:42 GMT-0600 (MDT)";
-        var CHECKSUM = 9881096907;
+        var APP_BUILD_DATE = "Tue Aug 18 2015 14:48:44 GMT-0600 (MDT)";
+        var CHECKSUM = 9715179824;
     </script>
     
     <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
@@ -18,18 +18,13 @@
 Ext.define('Rally.technicalservices.Toolbox',{
     singleton: true,
     populateTimeHash: function(startTime, endTime, granularity, key_format, records, date_field){
-        console.log('populateTimeHash',startTime, endTime, granularity, key_format, records, date_field)
         var hash = Rally.technicalservices.Toolbox.initializeTimeHash(startTime, endTime,granularity,key_format);
-
-        _.each(records, function(r){
+         _.each(records, function(r){
             var date_key = Rally.technicalservices.Toolbox.getTimeHashKey(r.get(date_field),key_format);
-            console.log(date_key);
             if (hash[date_key]){
-                console.log('push')
                 hash[date_key].push(r);
             }
         });
-
         return hash;
     },
     getTimeCategories: function(startTime, endTime, granularity, key_format){
@@ -63,7 +58,7 @@ Ext.define('Rally.technicalservices.Toolbox',{
     },
 
     initializeTimeHash: function(startTime, endTime, granularity, key_format){
-        var categories = Rally.technicalservices.Toolbox.getCategories(startTime, endTime, granularity, key_format);
+        var categories = Rally.technicalservices.Toolbox.getTimeCategories(startTime, endTime, granularity, key_format);
         if (categories.length == 0){
             return {};
         }
@@ -89,7 +84,9 @@ Ext.define('Rally.technicalservices.Toolbox',{
             idx = 0;
 
         _.each(categories, function(key){
-            total_sum += hash[key].length;
+            if (hash[key]){
+                total_sum += hash[key].length;
+            }
             sums[idx++] = total_sum;
         });
         return sums;
@@ -98,7 +95,6 @@ Ext.define('Rally.technicalservices.Toolbox',{
         var categories = [];
         _.each(records, function(r){
             var field_value = Rally.technicalservices.Toolbox._getFieldValue(r,category_field, attribute);
-            console.log(field_value);
             if (field_value && !Ext.Array.contains(categories,field_value)){
                 categories.push(field_value);
             }
@@ -109,7 +105,6 @@ Ext.define('Rally.technicalservices.Toolbox',{
         var hash = Rally.technicalservices.Toolbox.initializeArrayHash(categories);
         _.each(records, function(r){
             var field = Rally.technicalservices.Toolbox._getFieldValue(r,category_field, category_attribute);
-            console.log('field',field);
             if (hash[field]){
                 hash[field].push(r);
             }
@@ -449,7 +444,7 @@ Ext.define('Rally.technicalservices.chart.CumulativeGrowth',{
 
     constructor: function(config) {
         this.mergeConfig(config);
-        this.config.chartData = this._getChartData(config.records, config.dateFieldMapping);
+        this.config.chartData = this._getChartData(config.records, config.taggedRecords, config.dateFieldMapping);
         this.callParent([this.config]);
 
     },
@@ -462,6 +457,7 @@ Ext.define('Rally.technicalservices.chart.CumulativeGrowth',{
             series = [];
 
         var all_hash = Rally.technicalservices.Toolbox.populateTimeHash(this.startDate, this.endDate, 'day', category_date_format, records, 'CreationDate');
+
         series.push({
             name: 'Created (All)',
             data: Rally.technicalservices.Toolbox.getCumulativeSumFromTimeHash(all_hash, categories)
@@ -579,7 +575,7 @@ Ext.define("tagged-story-growth", {
         Deft.Promise.all(promises).then({
             scope: this,
             success: function(results){
-                this.logger.log('_fetchStories > records loaded', results.length);
+                this.logger.log('_fetchStories > records loaded', results[0].length, results[1].length);
                 this._buildChart(results[0], results[1]);
             },
             failure: function(msg){
