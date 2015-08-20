@@ -3,11 +3,11 @@
 <head>
     <title>Tagged Stories by Team</title>
     <!--  (c) 2015 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Wed Aug 19 2015 22:30:10 GMT-0600 (MDT) -->
+    <!--  Build Date: Wed Aug 19 2015 22:37:03 GMT-0600 (MDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Wed Aug 19 2015 22:30:10 GMT-0600 (MDT)";
-        var CHECKSUM = 15894462760;
+        var APP_BUILD_DATE = "Wed Aug 19 2015 22:37:03 GMT-0600 (MDT)";
+        var CHECKSUM = 15999561538;
     </script>
     
     <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
@@ -643,6 +643,11 @@ Ext.define("tagged-story-by-team", {
             Rally.technicalservices.WsapiToolbox.fetchLeafProjectsInScope(this.getContext().getProject()._ref).then({
                 scope: this,
                 success: function(leaves){
+                    this.add({
+                        xtype: 'container',
+                        itemId: 'display_box',
+                        width: '100%'
+                    });
                     this._fetchStories(this._getTags(), leaves);
                 },
                 failure: function(msg){

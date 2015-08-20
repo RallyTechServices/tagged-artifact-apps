@@ -27,6 +27,11 @@ Ext.define("tagged-story-by-team", {
             Rally.technicalservices.WsapiToolbox.fetchLeafProjectsInScope(this.getContext().getProject()._ref).then({
                 scope: this,
                 success: function(leaves){
+                    this.add({
+                        xtype: 'container',
+                        itemId: 'display_box',
+                        width: '100%'
+                    });
                     this._fetchStories(this._getTags(), leaves);
                 },
                 failure: function(msg){
