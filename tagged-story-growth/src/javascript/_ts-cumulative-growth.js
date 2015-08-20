@@ -5,10 +5,11 @@ Ext.define('Rally.technicalservices.chart.CumulativeGrowth',{
     extend: 'Rally.ui.chart.Chart',
     alias: 'widget.tscumulativegrowth',
     logger: new Rally.technicalservices.Logger(),
-
+    loadMask: false,
     config: {
         records: undefined,
         startDate: undefined,
+
         endDate: new Date(),
         chartConfig: {
             chart: {

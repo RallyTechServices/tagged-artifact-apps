@@ -3,11 +3,11 @@
 <head>
     <title>Tagged Story Growth</title>
     <!--  (c) 2015 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Tue Aug 18 2015 14:48:44 GMT-0600 (MDT) -->
+    <!--  Build Date: Wed Aug 19 2015 10:54:50 GMT-0600 (MDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Tue Aug 18 2015 14:48:44 GMT-0600 (MDT)";
-        var CHECKSUM = 9715179824;
+        var APP_BUILD_DATE = "Wed Aug 19 2015 10:54:50 GMT-0600 (MDT)";
+        var CHECKSUM = 10224873606;
     </script>
     
     <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
@@ -133,6 +133,25 @@ Ext.define('Rally.technicalservices.Toolbox',{
             series.push(count);
         });
         return series;
+    },
+    aggregateRecordsByField: function(records, field, field_attribute){
+        var aggregate_hash = {};
+
+        _.each(records, function(r){
+            var field_value = r.get(field);
+
+            if (field_attribute){
+                field_value = field_value[field_attribute];
+            }
+
+            if (field_value){
+                if (!aggregate_hash[field_value]){
+                    aggregate_hash[field_value] = [];
+                }
+                aggregate_hash[field_value].push(r);
+            }
+        });
+        return aggregate_hash;
     }
 });
 
@@ -190,7 +209,7 @@ Ext.define('Rally.technicalservices.WsapiToolbox',{
                 if (success){
                     deferred.resolve(records);
                 } else {
-                    deferred.reject(Ext.String.format('Error loading Store (Model = {0}, Fetch = {1}: {2}',model_name, model_fields, operation.error.errors.join(',')));
+                    deferred.reject(Ext.String.format('Error loading Store (Model = {0}, Fetch = {1}: {2}',config.model, config.fetch.join(','), operation.error.errors.join(',')));
                 }
             }
         });
@@ -402,10 +421,11 @@ Ext.define('Rally.technicalservices.chart.CumulativeGrowth',{
     extend: 'Rally.ui.chart.Chart',
     alias: 'widget.tscumulativegrowth',
     logger: new Rally.technicalservices.Logger(),
-
+    loadMask: false,
     config: {
         records: undefined,
         startDate: undefined,
+
         endDate: new Date(),
         chartConfig: {
             chart: {
