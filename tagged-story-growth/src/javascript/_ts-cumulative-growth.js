@@ -5,11 +5,11 @@ Ext.define('Rally.technicalservices.chart.CumulativeGrowth',{
     extend: 'Rally.ui.chart.Chart',
     alias: 'widget.tscumulativegrowth',
     logger: new Rally.technicalservices.Logger(),
-    loadMask: false,
+
     config: {
         records: undefined,
         startDate: undefined,
-
+        loadMask: false,
         endDate: new Date(),
         chartConfig: {
             chart: {
@@ -35,7 +35,6 @@ Ext.define('Rally.technicalservices.chart.CumulativeGrowth',{
             },
             plotOptions: {
                 area: {
-                    stacking: 'num_stories',
                     lineColor: '#000000',
                     lineWidth: 1,
                     marker: {
@@ -63,13 +62,15 @@ Ext.define('Rally.technicalservices.chart.CumulativeGrowth',{
         var all_hash = Rally.technicalservices.Toolbox.populateTimeHash(this.startDate, this.endDate, 'day', category_date_format, records, 'CreationDate');
 
         series.push({
-            name: 'Created (All)',
-            data: Rally.technicalservices.Toolbox.getCumulativeSumFromTimeHash(all_hash, categories)
+            name: 'All Stories in Release',
+            data: Rally.technicalservices.Toolbox.getCumulativeSumFromTimeHash(all_hash, categories),
+            visible: false
         });
 
         //Now do tagged stories
         _.each(dateFieldMapping, function(field, name){
             var hash = Rally.technicalservices.Toolbox.populateTimeHash(this.startDate, this.endDate, 'day', category_date_format, taggedRecords, field);
+            console.log('hash',field,name,hash);
             series.push({
                 name: name,
                 data: Rally.technicalservices.Toolbox.getCumulativeSumFromTimeHash(hash, categories)

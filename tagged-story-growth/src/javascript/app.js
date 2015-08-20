@@ -38,6 +38,11 @@ Ext.define("tagged-story-growth", {
 
         this.logger.log('_validateSettings > tags', tags);
         if (this._getTags().length > 0){
+            this.add({
+                xtype: 'container',
+                itemId: 'display_box',
+                width: '100%'
+            });
             this._fetchStories(this._getTags());
         } else {
             this.add({
@@ -57,7 +62,6 @@ Ext.define("tagged-story-growth", {
     },
     _fetchStories: function(tags){
         var me = this,
-            start_date = this.getContext().getTimeboxScope().getRecord().get('ReleaseStartDate'),
             release_name = this.getContext().getTimeboxScope().getRecord().get('Name'),
             tag_filter_objs = [];
 
@@ -86,7 +90,6 @@ Ext.define("tagged-story-growth", {
                 Rally.technicalservices.WsapiToolbox.fetchWsapiRecords({model: model, fetch: fetch, filters: filters})
             ];
 
-        this.logger.log('here');
         this.setLoading('Loading tagged stories...');
         Deft.Promise.all(promises).then({
             scope: this,
@@ -98,21 +101,6 @@ Ext.define("tagged-story-growth", {
                 Rally.ui.notify.Notifier.showError({message: msg});
             }
         }).always(function(){ me.setLoading(false);});
-
-        //Rally.technicalservices.WsapiToolbox.fetchWsapiRecords({
-        //    model: model,
-        //    fetch: fetch,
-        //    filters: filters
-        //}).then({
-        //    scope: this,
-        //    success: function(records){
-        //        this.logger.log('_fetchStories > records loaded', records.length);
-        //        this._buildChart(records);
-        //    },
-        //    failure: function(msg){
-        //        Rally.ui.notify.Notifier.showError({message: msg});
-        //    }
-        //}).always(function(){ me.setLoading(false);});
     },
 
     _buildChart: function(all_stories, tagged_stories){
