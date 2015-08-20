@@ -30,7 +30,7 @@ Ext.define("tagged-story-by-team", {
                     this.add({
                         xtype: 'container',
                         itemId: 'display_box',
-                        width: '100%'
+                        width: '95%'
                     });
                     this._fetchStories(this._getTags(), leaves);
                 },
@@ -158,6 +158,9 @@ Ext.define("tagged-story-by-team", {
             store: Ext.create('Rally.data.custom.Store',{
                 data: data
             }),
+            margin: 10,
+            padding: 10,
+            scroll: 'vertical',
             columnCfgs: this._getColumnCfgs()
         });
 

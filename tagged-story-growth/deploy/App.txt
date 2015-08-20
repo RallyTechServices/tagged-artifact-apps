@@ -3,11 +3,11 @@
 <head>
     <title>Tagged Story Growth</title>
     <!--  (c) 2015 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Wed Aug 19 2015 23:14:17 GMT-0600 (MDT) -->
+    <!--  Build Date: Wed Aug 19 2015 23:18:12 GMT-0600 (MDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Wed Aug 19 2015 23:14:17 GMT-0600 (MDT)";
-        var CHECKSUM = 13109321166;
+        var APP_BUILD_DATE = "Wed Aug 19 2015 23:18:12 GMT-0600 (MDT)";
+        var CHECKSUM = 13109320753;
     </script>
     
     <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
