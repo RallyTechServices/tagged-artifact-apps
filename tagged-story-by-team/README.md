@@ -1,8 +1,8 @@
 #Tagged Stories by Team
 
-![ScreenShot](/images/tagged-stories-by-team-configuration)
+![ScreenShot](/images/tagged-stories-by-team-configuration.png)
 
-![ScreenShot](/images/tagged-stories-by-team)
+![ScreenShot](/images/tagged-stories-by-team.png)
 
 For each team, Tagged Stories by Team shows the following:  
 
