@@ -1,5 +1,8 @@
 #Tagged Story Growth
 
+Within the timeframe of the selected release, Tagged Story Growth charts the total number of tagged stories created and accepted that are explicitly associated with the release.  
+
+
 ## Development Notes
 
 ### First Load

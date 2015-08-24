@@ -38,6 +38,11 @@ Ext.define("tagged-story-growth", {
 
         this.logger.log('_validateSettings > tags', tags);
         if (this._getTags().length > 0){
+            this.add({
+                xtype: 'container',
+                itemId: 'display_box',
+                width: '100%'
+            });
             this._fetchStories(this._getTags());
         } else {
             this.add({
@@ -57,34 +62,40 @@ Ext.define("tagged-story-growth", {
     },
     _fetchStories: function(tags){
         var me = this,
-            start_date = this.getContext().getTimeboxScope().getRecord().get('ReleaseStartDate'),
-            tag_filters = [];
+            release_name = this.getContext().getTimeboxScope().getRecord().get('Name'),
+            tag_filter_objs = [];
 
         _.each(tags, function(tag){
-            tag_filters.push({
+            tag_filter_objs.push({
                 property: 'Tags',
                 operator: '=',
                 value: tag
             });
         });
-        var filters = Rally.data.wsapi.Filter.or(tag_filters);
-        filters = filters.and({
-            property: 'CreationDate',
-            operator: '>=',
-            value: start_date
-        });
 
-        this.logger.log('_fetchStories > filters', filters.toString(), '> start_date', start_date);
+        var filter_obj = {
+            property: 'Release.Name',
+            operator: '=',
+            value: release_name
+        };
+
+        var filters = Rally.data.wsapi.Filter.or(tag_filter_objs);
+        filters = filters.and(filter_obj);
+
+        this.logger.log('_fetchStories > filters', filters.toString());
+        var fetch = ['FormattedID','ObjectID','Project','CreationDate','AcceptedDate','Name'],
+            model = 'HierarchicalRequirement',
+            promises = [
+                Rally.technicalservices.WsapiToolbox.fetchWsapiRecords({model: model, fetch: fetch, filters: [filter_obj]}),
+                Rally.technicalservices.WsapiToolbox.fetchWsapiRecords({model: model, fetch: fetch, filters: filters})
+            ];
+
         this.setLoading('Loading tagged stories...');
-        Rally.technicalservices.WsapiToolbox.fetchWsapiRecords({
-            model: 'HierarchicalRequirement',
-            fetch: ['FormattedID','ObjectID','Project','CreationDate','AcceptedDate','Name'],
-            filters: filters
-        }).then({
+        Deft.Promise.all(promises).then({
             scope: this,
-            success: function(records){
-                this.logger.log('_fetchStories > records loaded', records.length);
-                this._buildChart(records);
+            success: function(results){
+                this.logger.log('_fetchStories > records loaded', results[0].length, results[1].length);
+                this._buildChart(results[0], results[1]);
             },
             failure: function(msg){
                 Rally.ui.notify.Notifier.showError({message: msg});
@@ -92,11 +103,12 @@ Ext.define("tagged-story-growth", {
         }).always(function(){ me.setLoading(false);});
     },
 
-    _buildChart: function(records){
+    _buildChart: function(all_stories, tagged_stories){
         this.add({
             xtype: 'tscumulativegrowth',
             itemId: 'display_box',
-            records: records,
+            records: all_stories,
+            taggedRecords: tagged_stories,
             dateFieldMapping: {
                 Created: 'CreationDate',
                 Accepted: 'AcceptedDate'

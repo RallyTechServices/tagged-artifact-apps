@@ -9,6 +9,7 @@ Ext.define('Rally.technicalservices.chart.CumulativeGrowth',{
     config: {
         records: undefined,
         startDate: undefined,
+        loadMask: false,
         endDate: new Date(),
         chartConfig: {
             chart: {
@@ -34,7 +35,6 @@ Ext.define('Rally.technicalservices.chart.CumulativeGrowth',{
             },
             plotOptions: {
                 area: {
-                    stacking: 'num_stories',
                     lineColor: '#000000',
                     lineWidth: 1,
                     marker: {
@@ -47,20 +47,30 @@ Ext.define('Rally.technicalservices.chart.CumulativeGrowth',{
 
     constructor: function(config) {
         this.mergeConfig(config);
-        this.config.chartData = this._getChartData(config.records, config.dateFieldMapping);
+        this.config.chartData = this._getChartData(config.records, config.taggedRecords, config.dateFieldMapping);
         this.callParent([this.config]);
 
     },
     initComponent: function() {
         this.callParent(arguments);
     },
-    _getChartData: function(records, dateFieldMapping){
+    _getChartData: function(records, taggedRecords, dateFieldMapping){
         var category_date_format = 'Y-m-d',
             categories = Rally.technicalservices.Toolbox.getTimeCategories(this.startDate, this.endDate, 'day',category_date_format),
             series = [];
 
+        var all_hash = Rally.technicalservices.Toolbox.populateTimeHash(this.startDate, this.endDate, 'day', category_date_format, records, 'CreationDate');
+
+        series.push({
+            name: 'All Stories in Release',
+            data: Rally.technicalservices.Toolbox.getCumulativeSumFromTimeHash(all_hash, categories),
+            visible: false
+        });
+
+        //Now do tagged stories
         _.each(dateFieldMapping, function(field, name){
-            var hash = Rally.technicalservices.Toolbox.populateTimeHash(this.startDate, this.endDate, 'day', category_date_format, records, field);
+            var hash = Rally.technicalservices.Toolbox.populateTimeHash(this.startDate, this.endDate, 'day', category_date_format, taggedRecords, field);
+            console.log('hash',field,name,hash);
             series.push({
                 name: name,
                 data: Rally.technicalservices.Toolbox.getCumulativeSumFromTimeHash(hash, categories)

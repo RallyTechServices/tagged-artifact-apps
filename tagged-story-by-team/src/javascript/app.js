@@ -5,7 +5,7 @@ Ext.define("tagged-story-by-team", {
 
     componentCls: 'app',
     logger: new Rally.technicalservices.Logger(),
-
+    states: ['Defined','In-Progress','Completed','Accepted'],
     config: {
         defaultSettings: {
             tagsOfInterest: []
@@ -24,7 +24,20 @@ Ext.define("tagged-story-by-team", {
 
         this.logger.log('_validateSettings > tags', tags);
         if (this._getTags().length > 0){
-            this._fetchStories(this._getTags());
+            Rally.technicalservices.WsapiToolbox.fetchLeafProjectsInScope(this.getContext().getProject()._ref).then({
+                scope: this,
+                success: function(leaves){
+                    this.add({
+                        xtype: 'container',
+                        itemId: 'display_box',
+                        width: '95%'
+                    });
+                    this._fetchStories(this._getTags(), leaves);
+                },
+                failure: function(msg){
+                    Rally.ui.notify.Notifier.showError({message: msg});
+                }
+            });
         } else {
             this.add({
                 xtype: 'container',
@@ -40,56 +53,163 @@ Ext.define("tagged-story-by-team", {
         }
         return tags;
     },
-    _fetchStories: function(tags){
+    _fetchStories: function(tags, projects){
         var me = this,
+            release_name = this.getContext().getTimeboxScope().getRecord().get('Name'),
             start_date = this.getContext().getTimeboxScope().getRecord().get('ReleaseStartDate'),
-            tag_filters = [];
+            tag_filter_objs = [];
 
         _.each(tags, function(tag){
-            tag_filters.push({
+            tag_filter_objs.push({
                 property: 'Tags',
                 operator: '=',
                 value: tag
             });
         });
-        var filters = Rally.data.wsapi.Filter.or(tag_filters);
-        filters = filters.and({
-            property: 'CreationDate',
-            operator: '>=',
-            value: start_date
+
+        var filter_obj = {
+            property: 'Release.Name',
+            operator: '=',
+            value: release_name
+        };
+
+        var filters = Rally.data.wsapi.Filter.or(tag_filter_objs);
+        filters = filters.and(filter_obj);
+
+        this.logger.log('_fetchStories > filters', filters.toString());
+
+        var model = 'Project',
+            fetch = ['ObjectID','Name']
+
+
+        var fetch = ['FormattedID','ObjectID','Project','CreationDate','AcceptedDate','Name','ScheduleState'],
+            model = 'HierarchicalRequirement',
+            promises = [];
+
+        promises.push(Rally.technicalservices.WsapiToolbox.fetchWsapiRecords({model: model, fetch: fetch, filters: filters}));
+        _.each(projects, function(proj){
+            var count_filters = [filter_obj, {
+                property: 'Project.ObjectID',
+                value: proj.get('ObjectID')
+            }];
+            promises.push(Rally.technicalservices.WsapiToolbox.fetchWsapiCount(model,count_filters));
         });
 
-        this.logger.log('_fetchStories > filters', filters.toString(), '> start_date', start_date);
         this.setLoading('Loading tagged stories...');
-        Rally.technicalservices.WsapiToolbox.fetchWsapiRecords({
-            model: 'HierarchicalRequirement',
-            fetch: ['FormattedID','ObjectID','Project','ScheduleState'],
-            filters: filters
-        }).then({
+        Deft.Promise.all(promises).then({
             scope: this,
-            success: function(records){
-                this.logger.log('_fetchStories > records loaded', records.length);
-                this._buildChart(records);
+            success: function(results){
+                this.logger.log('_fetchStories > records loaded', results[0].length, results[1].length, results[1]);
+                this._buildGrid(results, projects);
             },
             failure: function(msg){
                 Rally.ui.notify.Notifier.showError({message: msg});
             }
         }).always(function(){ me.setLoading(false);});
-    },
-
-    _buildChart: function(records){
-        var chart = this.add({
-            xtype: 'tsartifactsbycategory',
-            itemId: 'display_box',
-            records: records,
-            categoryField: 'Project',
-            categoryAttribute: '_refObjectName',
-            seriesField: 'ScheduleState',
-            seriesFieldValues: ['Defined','In-Progress','Completed','Accepted']
-         });
 
     },
 
+    _buildGrid: function(results, projects){
+
+        /**
+         * Create a project hash
+         * For each project show:
+         *    # Total stories for release
+         *    # Tagged stories for Release
+         *    %Tagged Stories of total stories
+         *    %Defined Tagged Stories
+         *    %In Progress Tagged Stories
+         *    %Complete Tagged Stories
+         *    %Accepted
+         */
+        //Create Project Hash
+        //For each project:
+
+        var tagged_stories_by_project = Rally.technicalservices.Toolbox.aggregateRecordsByField(results[0], "Project", "ObjectID");
+
+        this.logger.log('_buildGrid', tagged_stories_by_project);
+        var data = [];
+
+        var states = this.states;
+        for (var i=0; i< projects.length; i++){
+            var tagged_story_array = tagged_stories_by_project[projects[i].get('ObjectID')] || [];
+
+            var tagged_stories_by_state = Rally.technicalservices.Toolbox.aggregateRecordsByField(tagged_story_array, "ScheduleState");
+
+            var rec = {
+                project: projects[i].get('Name'),
+                total: results[i+1] || 0,
+                tagged: tagged_story_array.length
+            };
+            _.each(states, function(state){
+                var state_array = tagged_stories_by_state[state] || [];
+                rec[state] = state_array.length;
+            });
+            data.push(rec);
+
+        }
+
+        if (this.down('#storygrid')){
+            this.down('#storygrid').destroy();
+        }
+        this.add({
+            xtype: 'rallygrid',
+            itemId: 'storygrid',
+            store: Ext.create('Rally.data.custom.Store',{
+                data: data
+            }),
+            margin: 10,
+            padding: 10,
+            scroll: 'vertical',
+            columnCfgs: this._getColumnCfgs()
+        });
+
+    },
+    _getColumnCfgs: function(){
+        var cols = [{
+            dataIndex: 'project',
+            text: 'Team',
+            flex: 1,
+            renderer: function(v,m,r){
+                if (r.get('tagged') == 0){
+                    return  '<span class="picto icon-warning ts-icon"></span>' + v ;
+                }
+                return '<span class="ts-icon"></span>' + v;
+            }
+        },{
+            dataIndex: 'total',
+            text: '# Stories'
+        },{
+            dataIndex: 'tagged',
+            text: '# Tagged Stories'
+        },{
+            dataIndex: 'tagged',
+            text: '% Tagged',
+            renderer: function(v,m,r){
+                var total = r.get('total') || 0;
+                if (v && v > 0 && total > 0){
+                    return Ext.String.format('{0} %', (v/total * 100).toFixed(0));
+                }
+                return '0 %';
+            }
+        }];
+
+        _.each(this.states, function(state){
+            cols.push({
+                dataIndex: state,
+                text: '% ' + state,
+                renderer: this._percentRenderer
+            });
+        }, this);
+        return cols;
+    },
+    _percentRenderer: function(v,m,r){
+        var tagged = r.get('tagged') || 0;
+        if (v && v > 0 && tagged > 0){
+            return Ext.String.format('{0} %', (v/tagged * 100).toFixed(0));
+        }
+        return '0 %';
+    },
     getOptions: function() {
         return [
             {
