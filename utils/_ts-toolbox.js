@@ -1,5 +1,12 @@
 Ext.define('Rally.technicalservices.Toolbox',{
     singleton: true,
+    getSettingAsArray: function(setting){
+        var setting_as_array = setting || [];
+        if (!(setting_as_array instanceof Array)){
+            setting_as_array = setting_as_array.split(',');
+        }
+        return setting_as_array;
+    },
     populateTimeHash: function(startTime, endTime, granularity, key_format, records, date_field){
         var hash = Rally.technicalservices.Toolbox.initializeTimeHash(startTime, endTime,granularity,key_format);
          _.each(records, function(r){
@@ -67,17 +74,25 @@ Ext.define('Rally.technicalservices.Toolbox',{
         }
         return null;
     },
-    getCumulativeSumFromTimeHash: function(hash, categories){
+    getCumulativeSumFromTimeHash: function(hash, categories, stopAtToday){
         //First sort, then add.
         var sums = _.map(_.range(categories.length), function(){return 0;}),
             total_sum = 0,
             idx = 0;
 
+        stopAtToday = stopAtToday || false;
+        var today = new Date();
+
         _.each(categories, function(key){
-            if (hash[key]){
-                total_sum += hash[key].length;
+            var date = new Date(key);
+            if (stopAtToday && date > today){
+                sums[idx++] = null;
+            } else {
+                if (hash[key]){
+                    total_sum += hash[key].length;
+                }
+                sums[idx++] = total_sum;
             }
-            sums[idx++] = total_sum;
         });
         return sums;
     },

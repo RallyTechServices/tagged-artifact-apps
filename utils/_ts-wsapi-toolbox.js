@@ -106,7 +106,31 @@ Ext.define('Rally.technicalservices.WsapiToolbox',{
         },this);
         return current_root;
     },
-
+    fetchScheduleStates: function(){
+        var deferred = Ext.create('Deft.Deferred');
+        Rally.data.ModelFactory.getModel({
+            type: 'HierarchicalRequirement',
+            success: function(model) {
+                var field = model.getField('ScheduleState');
+                field.getAllowedValueStore({sort: {property: 'Ordinal', direction: 'ASC'}}).load({
+                    callback: function(records, operation, success) {
+                        if (success){
+                            var values = _.map(records, function(r){return r.get('StringValue')});
+                            deferred.resolve(values);
+                        } else {
+                            deferred.reject('Error loading ScheduleState values for User Story:  ' + operation.error.errors.join(','));
+                        }
+                    },
+                    scope: this
+                });
+            },
+            failure: function() {
+                var error = "Could not load schedule states";
+                deferred.reject(error);
+            }
+        });
+        return deferred.promise;
+    },
     fetchDoneStates: function(){
         var deferred = Ext.create('Deft.Deferred');
         Rally.data.ModelFactory.getModel({

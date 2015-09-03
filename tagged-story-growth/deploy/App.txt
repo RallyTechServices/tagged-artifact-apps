@@ -3,11 +3,11 @@
 <head>
     <title>Tagged Story Growth</title>
     <!--  (c) 2015 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Wed Aug 19 2015 23:18:12 GMT-0600 (MDT) -->
+    <!--  Build Date: Thu Sep 03 2015 10:58:11 GMT-0600 (MDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Wed Aug 19 2015 23:18:12 GMT-0600 (MDT)";
-        var CHECKSUM = 13109320753;
+        var APP_BUILD_DATE = "Thu Sep 03 2015 10:58:11 GMT-0600 (MDT)";
+        var CHECKSUM = 14595230646;
     </script>
     
     <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
@@ -17,11 +17,17 @@
              
 Ext.define('Rally.technicalservices.Toolbox',{
     singleton: true,
+    getSettingAsArray: function(setting){
+        var setting_as_array = setting || [];
+        if (!(setting_as_array instanceof Array)){
+            setting_as_array = setting_as_array.split(',');
+        }
+        return setting_as_array;
+    },
     populateTimeHash: function(startTime, endTime, granularity, key_format, records, date_field){
         var hash = Rally.technicalservices.Toolbox.initializeTimeHash(startTime, endTime,granularity,key_format);
          _.each(records, function(r){
-             console.log('r', r.get('AcceptedDate'), r.get('CreationDate'));
-            var date_value = r.get(date_field);
+             var date_value = r.get(date_field);
 
             if (date_value){
                 if (date_value < startTime){
@@ -85,17 +91,25 @@ Ext.define('Rally.technicalservices.Toolbox',{
         }
         return null;
     },
-    getCumulativeSumFromTimeHash: function(hash, categories){
+    getCumulativeSumFromTimeHash: function(hash, categories, stopAtToday){
         //First sort, then add.
         var sums = _.map(_.range(categories.length), function(){return 0;}),
             total_sum = 0,
             idx = 0;
 
+        stopAtToday = stopAtToday || false;
+        var today = new Date();
+
         _.each(categories, function(key){
-            if (hash[key]){
-                total_sum += hash[key].length;
+            var date = new Date(key);
+            if (stopAtToday && date > today){
+                sums[idx++] = null;
+            } else {
+                if (hash[key]){
+                    total_sum += hash[key].length;
+                }
+                sums[idx++] = total_sum;
             }
-            sums[idx++] = total_sum;
         });
         return sums;
     },
@@ -237,7 +251,6 @@ Ext.define('Rally.technicalservices.WsapiToolbox',{
         var projectHash = {};
         _.each(records, function(rec){
             projectHash[rec.get('ObjectID')] = rec;
-
         });
         var current_root = null;
 
@@ -272,7 +285,31 @@ Ext.define('Rally.technicalservices.WsapiToolbox',{
         },this);
         return current_root;
     },
-
+    fetchScheduleStates: function(){
+        var deferred = Ext.create('Deft.Deferred');
+        Rally.data.ModelFactory.getModel({
+            type: 'HierarchicalRequirement',
+            success: function(model) {
+                var field = model.getField('ScheduleState');
+                field.getAllowedValueStore({sort: {property: 'Ordinal', direction: 'ASC'}}).load({
+                    callback: function(records, operation, success) {
+                        if (success){
+                            var values = _.map(records, function(r){return r.get('StringValue')});
+                            deferred.resolve(values);
+                        } else {
+                            deferred.reject('Error loading ScheduleState values for User Story:  ' + operation.error.errors.join(','));
+                        }
+                    },
+                    scope: this
+                });
+            },
+            failure: function() {
+                var error = "Could not load schedule states";
+                deferred.reject(error);
+            }
+        });
+        return deferred.promise;
+    },
     fetchDoneStates: function(){
         var deferred = Ext.create('Deft.Deferred');
         Rally.data.ModelFactory.getModel({
@@ -593,7 +630,7 @@ Ext.define('Rally.technicalservices.chart.CumulativeGrowth',{
 
         series.push({
             name: 'All Stories in Release',
-            data: Rally.technicalservices.Toolbox.getCumulativeSumFromTimeHash(all_hash, categories),
+            data: Rally.technicalservices.Toolbox.getCumulativeSumFromTimeHash(all_hash, categories, true),
             visible: false
         });
 
@@ -603,7 +640,7 @@ Ext.define('Rally.technicalservices.chart.CumulativeGrowth',{
             console.log('hash',field,name,hash);
             series.push({
                 name: name,
-                data: Rally.technicalservices.Toolbox.getCumulativeSumFromTimeHash(hash, categories)
+                data: Rally.technicalservices.Toolbox.getCumulativeSumFromTimeHash(hash, categories, true)
             });
         }, this);
 

@@ -63,7 +63,7 @@ Ext.define('Rally.technicalservices.chart.CumulativeGrowth',{
 
         series.push({
             name: 'All Stories in Release',
-            data: Rally.technicalservices.Toolbox.getCumulativeSumFromTimeHash(all_hash, categories),
+            data: Rally.technicalservices.Toolbox.getCumulativeSumFromTimeHash(all_hash, categories, true),
             visible: false
         });
 
@@ -73,7 +73,7 @@ Ext.define('Rally.technicalservices.chart.CumulativeGrowth',{
             console.log('hash',field,name,hash);
             series.push({
                 name: name,
-                data: Rally.technicalservices.Toolbox.getCumulativeSumFromTimeHash(hash, categories)
+                data: Rally.technicalservices.Toolbox.getCumulativeSumFromTimeHash(hash, categories, true)
             });
         }, this);
 
